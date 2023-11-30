@@ -25,7 +25,7 @@ public class Main {
                 registry.addMapping("/**")
                         .allowedOrigins("*")
                         .allowedMethods("GET", "PUT", "POST");
-                registry.addMapping("/delete")
+                    registry.addMapping("/delete")
                         .allowedOrigins("*")
                         .allowedMethods("POST", "DELETE");
                 registry.addMapping("/directory/delete")
