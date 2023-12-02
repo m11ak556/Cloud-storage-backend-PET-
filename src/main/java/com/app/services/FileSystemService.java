@@ -27,10 +27,20 @@ public class FileSystemService implements IFileSystemService {
         this.rootPath = Paths.get(uploadConfiguration.getRootDirectory());
     }
 
+    /**
+     * Сохраняет файл в указанну папку с учетом корневой папки.
+     *
+     * @param file
+     *        Сохраняемый файл.
+     *
+     * @param destination
+     *        Относительный путь сохранения. ДЛЯ СОХРАНЕНИЯ В КОРЕНЬ
+     *        СЛЕДУЕТ ОСТАВИТЬ ПУСТЫМ.
+     * */
     @Override
     public void saveFile(MultipartFile file, String destination) {
         String fileName = file.getOriginalFilename();
-        Path saveTo = getDirectoryPath(destination)
+        Path saveTo = getResolvedPath(destination)
                 .resolve(fileName)
                 .normalize();
 
@@ -43,7 +53,7 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public Resource getFile(String fileLocation) {
-        Path pathToFile = getFilePath(fileLocation);
+        Path pathToFile = getResolvedPath(fileLocation);
 
         try {
             Resource file = new UrlResource(pathToFile.toUri());
@@ -58,7 +68,7 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void deleteFile(String fileLocation) {
-        Path pathToFile = getFilePath(fileLocation);
+        Path pathToFile = getResolvedPath(fileLocation);
         try {
             if (Files.notExists(pathToFile))
                 throw new FileNotFoundException();
@@ -71,8 +81,8 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void moveFile(String source, String destination) {
-        Path sourcePath = getFilePath(source);
-        Path destinationPath = getFilePath(destination);
+        Path sourcePath = getResolvedPath(source);
+        Path destinationPath = getResolvedPath(destination);
         try {
             Files.move(sourcePath, destinationPath);
         } catch (IOException e) {
@@ -82,7 +92,7 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void createDirectory(String directoryName) {
-        Path pathToDirectory = getDirectoryPath(directoryName);
+        Path pathToDirectory = getResolvedPath(directoryName);
         try {
             Files.createDirectories(pathToDirectory);
         } catch (IOException e) {
@@ -92,7 +102,7 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void deleteDirectory(String directoryLocation) {
-        Path pathToDirectory = getDirectoryPath(directoryLocation);
+        Path pathToDirectory = getResolvedPath(directoryLocation);
         try {
             FileSystemUtils.deleteRecursively(pathToDirectory);
         } catch (IOException e) {
@@ -101,11 +111,7 @@ public class FileSystemService implements IFileSystemService {
     }
     private final Path rootPath;
 
-    private Path getFilePath(String fileName) {
+    private Path getResolvedPath(String fileName) {
         return rootPath.resolve(fileName).normalize();
-    }
-
-    private Path getDirectoryPath(String directoryName) {
-        return rootPath.resolve(directoryName).normalize();
     }
 }

@@ -1,6 +1,11 @@
 package com.app.controllers;
 
 import com.app.interfaces.IFileSystemService;
+import com.app.model.FileModel;
+import com.app.model.FileTypes;
+import com.app.model.User;
+import com.app.repositories.IFileModelRepository;
+import com.app.repositories.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -11,17 +16,30 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLConnection;
+import java.util.Date;
 
 @Controller
 public class FileManagementController {
     @Autowired
-    public FileManagementController(IFileSystemService fileSystemService) {
+    public FileManagementController(IFileSystemService fileSystemService, IFileModelRepository fileModelRepository) {
         this.fileSystemService = fileSystemService;
+        this.fileModelRepository = fileModelRepository;
     }
 
     @PostMapping("/upload")
     @ResponseBody
-    public void uploadFile(@RequestParam MultipartFile file, @RequestParam String destination) {
+    public void uploadFile(@RequestParam MultipartFile file,
+                           @RequestParam long user_id,
+                           @RequestParam String destination) {
+        FileModel fileModel = new FileModel();
+        fileModel.setName(file.getOriginalFilename());
+        fileModel.setPath(destination);
+        fileModel.setDateCreated(new Date());
+        fileModel.setUser_id(user_id);
+        fileModel.setSize(file.getSize());
+        fileModel.setType(FileTypes.OTHER);
+
+        fileModelRepository.save(fileModel);
         fileSystemService.saveFile(file, destination);
     }
 
@@ -66,4 +84,5 @@ public class FileManagementController {
     }
 
     private final IFileSystemService fileSystemService;
+    private final IFileModelRepository fileModelRepository;
 }
