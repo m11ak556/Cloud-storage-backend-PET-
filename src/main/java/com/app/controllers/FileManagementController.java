@@ -16,14 +16,18 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLConnection;
+import java.nio.file.Path;
 import java.util.Date;
 
 @Controller
 public class FileManagementController {
     @Autowired
-    public FileManagementController(IFileSystemService fileSystemService, IFileModelRepository fileModelRepository) {
+    public FileManagementController(IFileSystemService fileSystemService,
+                                    IFileModelRepository fileModelRepository,
+                                    IUserRepository userRepository) {
         this.fileSystemService = fileSystemService;
         this.fileModelRepository = fileModelRepository;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/upload")
@@ -31,6 +35,15 @@ public class FileManagementController {
     public void uploadFile(@RequestParam MultipartFile file,
                            @RequestParam long user_id,
                            @RequestParam String destination) {
+        User user = userRepository.findById(user_id).orElse(null);
+        Path workingDirectory = Path.of(user.getWorkingDirectory());
+
+        // Добавляет рабочую директорию пользователя к пути файла.
+        // Так файл будет сохранен в папку пользователя, а не в корень программы.
+        destination = workingDirectory.resolve(destination)
+                .normalize()
+                .toString();
+
         FileModel fileModel = new FileModel();
         fileModel.setName(file.getOriginalFilename());
         fileModel.setPath(destination);
@@ -85,4 +98,5 @@ public class FileManagementController {
 
     private final IFileSystemService fileSystemService;
     private final IFileModelRepository fileModelRepository;
+    private final IUserRepository userRepository;
 }
