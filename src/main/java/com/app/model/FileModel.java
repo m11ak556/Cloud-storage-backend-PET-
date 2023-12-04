@@ -20,7 +20,8 @@ public class FileModel {
     @GeneratedValue
     private long id;
     @Id
-    private long user_id;
+    @Column(name = "user_id")
+    private long userId;
 
     private String name;
     private String path;

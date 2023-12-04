@@ -9,6 +9,8 @@ import com.app.repositories.IFileModelRepository;
 import com.app.repositories.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,8 @@ import java.io.IOException;
 import java.net.URLConnection;
 import java.nio.file.Path;
 import java.util.*;
+
+import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.exact;
 
 @Controller
 public class FileManagementController {
@@ -35,7 +39,7 @@ public class FileManagementController {
         this.zipArchiverService = zipArchiverService;
     }
 
-    @PostMapping("/upload")
+    @PostMapping(apiName + "/upload")
     @ResponseBody
     public void uploadFile(@RequestParam MultipartFile file,
                            @RequestParam long user_id,
@@ -55,7 +59,7 @@ public class FileManagementController {
         fileSystemService.saveFile(file, destination);
     }
 
-    @PostMapping("/uploadMultiple")
+    @PostMapping(apiName + "/uploadMultiple")
     @ResponseBody
     public void uploadFiles(@RequestParam MultipartFile[] files,
                            @RequestParam long user_id,
@@ -81,7 +85,7 @@ public class FileManagementController {
 
     // The colon is just a separator. It separates
     // path variable name from regular expression
-    @GetMapping("/download")
+    @GetMapping(apiName + "/download")
     @ResponseBody
     public ResponseEntity downloadFile(@RequestParam String fileName) {
         Resource resource = null;
@@ -103,7 +107,7 @@ public class FileManagementController {
                 .body(resource);
     }
 
-    @GetMapping("/downloadMultiple")
+    @GetMapping(apiName + "/downloadMultiple")
     @ResponseBody
     public ResponseEntity downloadFiles(@RequestParam String[] fileNames) {
         try {
@@ -124,13 +128,34 @@ public class FileManagementController {
         }
     }
 
-    @GetMapping("/getFiles")
+    @GetMapping(apiName + "/getByUserId")
     @ResponseBody
-    public void getFiles(@RequestParam String directory) {
+    public ResponseEntity<List<FileModel>> getFiles(@RequestParam long userId) {
+        User user = userRepository.findById(userId).orElse(null);
 
+        if (user != null)
+            return getFiles(user.getWorkingDirectory(), userId);
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).build();
     }
 
-    @DeleteMapping("/delete")
+    @GetMapping(apiName + "/get")
+    @ResponseBody
+    public ResponseEntity<List<FileModel>> getFiles(@RequestParam String directory, long userId) {
+        FileModel probe = new FileModel();
+        probe.setUserId(userId);
+        probe.setPath(directory);
+
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withIgnorePaths("id", "size")
+                .withMatcher("user_id", exact())
+                .withMatcher("path", exact());
+
+        List<FileModel> files = fileModelRepository.findAll(Example.of(probe, matcher));
+        return ResponseEntity.ok().body(files);
+    }
+
+    @DeleteMapping(apiName + "/delete")
     @ResponseBody
     public void deleteFile(@RequestParam String fileName) {
         try {
@@ -144,13 +169,14 @@ public class FileManagementController {
     private final IFileModelRepository fileModelRepository;
     private final IUserRepository userRepository;
     private final IZipArchiverService zipArchiverService;
+    private final String apiName = "/files";
 
     private FileModel buildFileModel(MultipartFile file, long user_id, String destination) {
         FileModel fileModel = new FileModel();
         fileModel.setName(file.getOriginalFilename());
         fileModel.setPath(destination);
         fileModel.setDateCreated(new Date());
-        fileModel.setUser_id(user_id);
+        fileModel.setUserId(user_id);
         fileModel.setSize(file.getSize());
         fileModel.setType(FileTypes.OTHER);
 

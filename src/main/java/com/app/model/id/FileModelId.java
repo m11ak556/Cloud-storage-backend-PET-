@@ -13,5 +13,5 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class FileModelId implements Serializable {
     private long id;
-    private long user_id;
+    private long userId;
 }
