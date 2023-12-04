@@ -20,7 +20,7 @@ public class TrashbinController {
         this.fileSystemService = fileSystemService;
     }
 
-    @PostMapping("/trashbin/put")
+    @PostMapping(apiName + "/put")
     @ResponseBody
     public void putFile(@RequestParam String fileLocation) {
 
@@ -36,5 +36,6 @@ public class TrashbinController {
 //    }
 
     private final String trashbinPath;
+    private final String apiName = "/trashbin";
     private final IFileSystemService fileSystemService;
 }

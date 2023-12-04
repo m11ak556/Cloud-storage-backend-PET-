@@ -15,7 +15,7 @@ public class DirectoryManagementController {
         this.fileSystemService = fileSystemService;
     }
 
-    @PostMapping("/directory/create")
+    @PostMapping(apiName + "/create")
     @ResponseBody
     public void createDirectory(@RequestParam String directoryName) {
         try {
@@ -25,7 +25,7 @@ public class DirectoryManagementController {
         }
     }
 
-    @DeleteMapping("/directory/delete")
+    @DeleteMapping(apiName + "/delete")
     @ResponseBody
     public void deleteDirectory(@RequestParam String directoryName) {
         try {
@@ -35,5 +35,6 @@ public class DirectoryManagementController {
         }
     }
 
+    private final String apiName = "/directory";
     private final IFileSystemService fileSystemService;
 }

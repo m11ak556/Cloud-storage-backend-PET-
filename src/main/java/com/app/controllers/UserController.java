@@ -27,7 +27,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PostMapping("/user/create")
+    @PostMapping(apiName + "/create")
     @ResponseBody
     public ResponseEntity<String> createUser(@RequestBody User user) {
         if (userService.isLoginDuplicate(user.getLogin()))
@@ -45,20 +45,21 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/user/get")
+    @GetMapping(apiName + "/get")
     @ResponseBody
     public ResponseEntity<List<User>> getUsers() {
         List<User> users = userRepository.findAll();
         return ResponseEntity.ok().body(users);
     }
 
-    @GetMapping("/user/getById")
+    @GetMapping(apiName + "/getById")
     @ResponseBody
     public ResponseEntity<User> getUserById(@RequestParam long id) {
         User user = userRepository.findById(id).orElse(null);
         return ResponseEntity.ok().body(user);
     }
 
+    private final String apiName = "/user";
     private final IUserRepository userRepository;
     private final IFileSystemService fileSystemService;
     private final IUserService userService;
