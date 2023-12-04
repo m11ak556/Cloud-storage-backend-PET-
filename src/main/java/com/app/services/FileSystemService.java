@@ -115,9 +115,9 @@ public class FileSystemService implements IFileSystemService {
             throw new RuntimeException(e);
         }
     }
-    private final Path rootPath;
-
-    private Path getResolvedPath(String fileName) {
+    public Path getResolvedPath(String fileName) {
         return rootPath.resolve(fileName).normalize();
     }
+    private final Path rootPath;
+
 }

@@ -1,6 +1,7 @@
 package com.app.controllers;
 
 import com.app.interfaces.IFileSystemService;
+import com.app.interfaces.IZipArchiverService;
 import com.app.model.FileModel;
 import com.app.model.FileTypes;
 import com.app.model.User;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URLConnection;
 import java.nio.file.Path;
 import java.util.*;
@@ -25,10 +27,12 @@ public class FileManagementController {
     @Autowired
     public FileManagementController(IFileSystemService fileSystemService,
                                     IFileModelRepository fileModelRepository,
-                                    IUserRepository userRepository) {
+                                    IUserRepository userRepository,
+                                    IZipArchiverService zipArchiverService) {
         this.fileSystemService = fileSystemService;
         this.fileModelRepository = fileModelRepository;
         this.userRepository = userRepository;
+        this.zipArchiverService = zipArchiverService;
     }
 
     @PostMapping("/upload")
@@ -53,7 +57,7 @@ public class FileManagementController {
 
     @PostMapping("/uploadMultiple")
     @ResponseBody
-    public void uploadFile(@RequestParam MultipartFile[] files,
+    public void uploadFiles(@RequestParam MultipartFile[] files,
                            @RequestParam long user_id,
                            @RequestParam String destination) {
         User user = userRepository.findById(user_id).orElse(null);
@@ -99,6 +103,27 @@ public class FileManagementController {
                 .body(resource);
     }
 
+    @GetMapping("/downloadMultiple")
+    @ResponseBody
+    public ResponseEntity downloadFiles(@RequestParam String[] fileNames) {
+        try {
+            for (int i = 0; i < fileNames.length; i++) {
+                fileNames[i] = fileSystemService.getResolvedPath(fileNames[i]).toString();
+            }
+            File zipFile = zipArchiverService.zip(fileNames);
+            Resource resource = fileSystemService.getFile(zipFile.getAbsolutePath());
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE,
+                            URLConnection.guessContentTypeFromName(resource.getFilename()))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @GetMapping("/getFiles")
     @ResponseBody
     public void getFiles(@RequestParam String directory) {
@@ -118,6 +143,7 @@ public class FileManagementController {
     private final IFileSystemService fileSystemService;
     private final IFileModelRepository fileModelRepository;
     private final IUserRepository userRepository;
+    private final IZipArchiverService zipArchiverService;
 
     private FileModel buildFileModel(MultipartFile file, long user_id, String destination) {
         FileModel fileModel = new FileModel();

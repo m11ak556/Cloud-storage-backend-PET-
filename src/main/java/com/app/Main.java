@@ -1,6 +1,7 @@
 package com.app;
 
 import com.app.configuration.FileSystemConfiguration;
+import com.app.configuration.TmpDirectoryInitializer;
 import com.app.configuration.TrashbinInitializer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -42,4 +43,6 @@ public class Main {
     public TrashbinInitializer trashbinInitializer() {
         return new TrashbinInitializer();
     }
+    @Bean(initMethod = "initializeTmpDirectory")
+    TmpDirectoryInitializer tmpDirectoryInitializer() { return new TmpDirectoryInitializer(); }
 }

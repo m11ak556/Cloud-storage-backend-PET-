@@ -3,6 +3,8 @@ package com.app.interfaces;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Path;
+
 public interface IFileSystemService {
     void saveFile(MultipartFile file, String destination);
     void saveAllFiles(MultipartFile[] files, String destination);
@@ -18,4 +20,5 @@ public interface IFileSystemService {
     * */
     void deleteDirectory(String directoryLocation);
     void moveFile(String source, String destination);
+    Path getResolvedPath(String fileName);
 }
