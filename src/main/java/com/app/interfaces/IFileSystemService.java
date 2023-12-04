@@ -5,6 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface IFileSystemService {
     void saveFile(MultipartFile file, String destination);
+    void saveAllFiles(MultipartFile[] files, String destination);
     Resource getFile(String fileLocation);
     void deleteFile(String fileLocation);
     void createDirectory(String directoryName);

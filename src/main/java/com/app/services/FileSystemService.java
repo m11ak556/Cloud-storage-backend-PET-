@@ -52,6 +52,12 @@ public class FileSystemService implements IFileSystemService {
     }
 
     @Override
+    public void saveAllFiles(MultipartFile[] files, String destination) {
+        for (MultipartFile file : files)
+            saveFile(file, destination);
+    }
+
+    @Override
     public Resource getFile(String fileLocation) {
         Path pathToFile = getResolvedPath(fileLocation);
 

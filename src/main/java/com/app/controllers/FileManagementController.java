@@ -15,9 +15,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.net.URLConnection;
 import java.nio.file.Path;
-import java.util.Date;
+import java.util.*;
 
 @Controller
 public class FileManagementController {
@@ -44,16 +45,34 @@ public class FileManagementController {
                 .normalize()
                 .toString();
 
-        FileModel fileModel = new FileModel();
-        fileModel.setName(file.getOriginalFilename());
-        fileModel.setPath(destination);
-        fileModel.setDateCreated(new Date());
-        fileModel.setUser_id(user_id);
-        fileModel.setSize(file.getSize());
-        fileModel.setType(FileTypes.OTHER);
+        FileModel fileModel = buildFileModel(file, user_id, destination);
 
         fileModelRepository.save(fileModel);
         fileSystemService.saveFile(file, destination);
+    }
+
+    @PostMapping("/uploadMultiple")
+    @ResponseBody
+    public void uploadFile(@RequestParam MultipartFile[] files,
+                           @RequestParam long user_id,
+                           @RequestParam String destination) {
+        User user = userRepository.findById(user_id).orElse(null);
+        Path workingDirectory = Path.of(user.getWorkingDirectory());
+
+        // Добавляет рабочую директорию пользователя к пути файла.
+        // Так файл будет сохранен в папку пользователя, а не в корень программы.
+        destination = workingDirectory.resolve(destination)
+                .normalize()
+                .toString();
+
+        List<FileModel> fileModels = new ArrayList<FileModel>();
+        for (MultipartFile file: files) {
+            FileModel fileModel = buildFileModel(file, user_id, destination);
+            fileModels.add(fileModel);
+        }
+
+        fileModelRepository.saveAll(fileModels);
+        fileSystemService.saveAllFiles(files, destination);
     }
 
     // The colon is just a separator. It separates
@@ -99,4 +118,16 @@ public class FileManagementController {
     private final IFileSystemService fileSystemService;
     private final IFileModelRepository fileModelRepository;
     private final IUserRepository userRepository;
+
+    private FileModel buildFileModel(MultipartFile file, long user_id, String destination) {
+        FileModel fileModel = new FileModel();
+        fileModel.setName(file.getOriginalFilename());
+        fileModel.setPath(destination);
+        fileModel.setDateCreated(new Date());
+        fileModel.setUser_id(user_id);
+        fileModel.setSize(file.getSize());
+        fileModel.setType(FileTypes.OTHER);
+
+        return fileModel;
+    }
 }
