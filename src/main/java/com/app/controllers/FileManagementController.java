@@ -27,6 +27,7 @@ import java.util.*;
 import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.exact;
 
 @Controller
+//@CrossOrigin("http://localhost:3000")
 public class FileManagementController {
     @Autowired
     public FileManagementController(IFileSystemService fileSystemService,

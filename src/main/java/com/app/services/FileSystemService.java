@@ -45,6 +45,7 @@ public class FileSystemService implements IFileSystemService {
                 .normalize();
 
         try (InputStream inputStream = file.getInputStream()) {
+            createDirectory(destination);
             Files.copy(inputStream, saveTo, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             return;
