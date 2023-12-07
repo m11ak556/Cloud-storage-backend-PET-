@@ -15,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -50,14 +51,16 @@ public class FileManagementController {
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        destination = workingDirectory.resolve(destination)
+        String fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
 
-        FileModel fileModel = buildFileModel(file, user_id, destination);
+        FileModel fileModel = buildFileModel(file, user_id, fullDestination);
+        // Папу также сохраняем в базу данных как файл
+        fetchFolderAndSave(user_id, fullDestination);
 
         fileModelRepository.save(fileModel);
-        fileSystemService.saveFile(file, destination);
+        fileSystemService.saveFile(file, fullDestination);
     }
 
     @PostMapping(apiName + "/uploadMultiple")
@@ -70,18 +73,21 @@ public class FileManagementController {
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        destination = workingDirectory.resolve(destination)
+        String fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
 
         List<FileModel> fileModels = new ArrayList<FileModel>();
         for (MultipartFile file: files) {
-            FileModel fileModel = buildFileModel(file, user_id, destination);
+            FileModel fileModel = buildFileModel(file, user_id, fullDestination);
             fileModels.add(fileModel);
         }
 
+        // Папу также сохраняем в базу данных как файл
+        fetchFolderAndSave(user_id, fullDestination);
+
         fileModelRepository.saveAll(fileModels);
-        fileSystemService.saveAllFiles(files, destination);
+        fileSystemService.saveAllFiles(files, fullDestination);
     }
 
     // The colon is just a separator. It separates
@@ -172,14 +178,54 @@ public class FileManagementController {
     private final IZipArchiverService zipArchiverService;
     private final String apiName = "/files";
 
-    private FileModel buildFileModel(MultipartFile file, long user_id, String destination) {
+    private String getPathToFolder(String fullDestination, String defaultPath)
+    {
+        String pathToFolder = defaultPath.toString();
+        int endIndex = fullDestination.lastIndexOf("/");
+        if (endIndex > 0)
+            pathToFolder = fullDestination.substring(0, endIndex);
+        return pathToFolder;
+    }
+    private void fetchFolderAndSave(long user_id, String fullDestination)
+    {
+        String directoryName = StringUtils.getFilename(fullDestination);
+
+        // Определяем путь по умолчанию
+        String defaultPath;
+        int firstSlashIndex = fullDestination.indexOf("/");
+
+        // Если путь содержит несколько папок ...
+        if (firstSlashIndex > 0)
+            // ... выбираем корень
+            defaultPath = fullDestination.substring(0, firstSlashIndex);
+        else
+            defaultPath = fullDestination;
+
+        String pathToFolder = getPathToFolder(fullDestination, defaultPath);
+        FileModel folder = buildFileModelFromDirectory(directoryName, user_id, pathToFolder);
+        fileModelRepository.save(folder);
+    }
+
+    private FileModel buildFileModel(MultipartFile file, long user_id, String path) {
         FileModel fileModel = new FileModel();
         fileModel.setName(file.getOriginalFilename());
-        fileModel.setPath(destination);
+        fileModel.setPath(path);
         fileModel.setDateCreated(new Date());
         fileModel.setUserId(user_id);
         fileModel.setSize(file.getSize());
         fileModel.setType(FileTypes.OTHER);
+
+        return fileModel;
+    }
+
+    private FileModel buildFileModelFromDirectory(String directoryName, long user_id, String path)
+    {
+        FileModel fileModel = new FileModel();
+        fileModel.setName(directoryName);
+        fileModel.setPath(path);
+        fileModel.setDateCreated(new Date());
+        fileModel.setUserId(user_id);
+        fileModel.setType(FileTypes.DIRECTORY);
 
         return fileModel;
     }
