@@ -1,5 +1,7 @@
 package com.app.services;
 
+import com.app.configuration.FileSystemConfiguration;
+import com.app.interfaces.IFileSystemService;
 import com.app.interfaces.IUserService;
 import com.app.model.User;
 import com.app.repositories.IUserRepository;
@@ -11,8 +13,13 @@ import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatc
 
 @Service
 public class UserService implements IUserService {
-    public UserService(IUserRepository userRepository) {
+    public UserService(IUserRepository userRepository,
+                       IFileSystemService fileSystemService,
+                       FileSystemConfiguration fileSystemConfiguration) {
         this.userRepository = userRepository;
+        this.fileSystemService = fileSystemService;
+        trasbinDirectory = fileSystemConfiguration.getTrashbinDirectory();
+        tmpDirectory = fileSystemConfiguration.getTmpDirectory();
     }
 
     public boolean isLoginDuplicate(String login) {
@@ -30,5 +37,14 @@ public class UserService implements IUserService {
         return userRepository.exists(Example.of(probe, matcher));
     }
 
+    public void initializeDirectories(String login) {
+        fileSystemService.createDirectory(login);
+        fileSystemService.createDirectory(login + "/" + trasbinDirectory);
+        fileSystemService.createDirectory(login + "/" + tmpDirectory);
+    }
+
     private final IUserRepository userRepository;
+    private final IFileSystemService fileSystemService;
+    private String trasbinDirectory;
+    private String tmpDirectory;
 }

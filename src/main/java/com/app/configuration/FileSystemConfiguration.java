@@ -13,22 +13,7 @@ public class FileSystemConfiguration {
         return rootPath;
     }
 
-    public Path getTrashbinPath() {
-        Path rootPath = getRootPath();
-        Path trashbinPath = rootPath.resolve(trashbinDirectory).normalize();
-
-        return trashbinPath;
-    }
-
-    public Path getTmpPath() {
-        Path rootPath = getRootPath();
-        Path tmpPath = rootPath.resolve(tmpDirectory).normalize();
-
-        return tmpPath;
-    }
-
     private final String rootDirectory = "src/files";
     private final String trashbinDirectory = ".trashbin";
-
     private final String tmpDirectory = ".tmp";
 }

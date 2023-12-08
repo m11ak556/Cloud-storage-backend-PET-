@@ -5,5 +5,5 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 public interface IZipArchiverService {
-    File zip(String[] entries) throws IOException;
+    File zip(String[] entries, String saveTo) throws IOException;
 }

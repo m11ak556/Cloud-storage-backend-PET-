@@ -26,10 +26,10 @@ public class ZipArchiverService implements IZipArchiverService {
     }
 
     @Override
-    public File zip(String[] entries) throws IOException {
+    public File zip(String[] entries, String saveTo) throws IOException {
         String zipFileName = generateZipName();
-        Path pathToZipFile = fileSystemConfiguration
-                .getTmpPath()
+        Path pathToZipFile = fileSystemConfiguration.getRootPath()
+                .resolve(saveTo)
                 .resolve(zipFileName)
                 .normalize();
 

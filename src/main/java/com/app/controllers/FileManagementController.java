@@ -1,5 +1,6 @@
 package com.app.controllers;
 
+import com.app.configuration.FileSystemConfiguration;
 import com.app.interfaces.IFileSystemService;
 import com.app.interfaces.IZipArchiverService;
 import com.app.model.FileModel;
@@ -34,11 +35,13 @@ public class FileManagementController {
     public FileManagementController(IFileSystemService fileSystemService,
                                     IFileModelRepository fileModelRepository,
                                     IUserRepository userRepository,
-                                    IZipArchiverService zipArchiverService) {
+                                    IZipArchiverService zipArchiverService,
+                                    FileSystemConfiguration fileSystemConfiguration) {
         this.fileSystemService = fileSystemService;
         this.fileModelRepository = fileModelRepository;
         this.userRepository = userRepository;
         this.zipArchiverService = zipArchiverService;
+        this.tmpDirectory = fileSystemConfiguration.getTmpDirectory();
     }
 
     @PostMapping(apiName + "/upload")
@@ -48,16 +51,21 @@ public class FileManagementController {
                            @RequestParam String destination) {
         User user = userRepository.findById(user_id).orElse(null);
         Path workingDirectory = Path.of(user.getWorkingDirectory());
+        String fullDestination = null;
+        FileModel fileModel = null;
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        String fullDestination = workingDirectory.resolve(destination)
+        fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
 
-        FileModel fileModel = buildFileModel(file, user_id, fullDestination);
-        // Папу также сохраняем в базу данных как файл
-        fetchFolderAndSave(user_id, fullDestination);
+        if (!destination.isEmpty()) {
+
+            fileModel = buildFileModel(file, user_id, fullDestination);
+            // Папу также сохраняем в базу данных как файл
+            fetchFolderAndSave(user_id, fullDestination);
+        }
 
         fileModelRepository.save(fileModel);
         fileSystemService.saveFile(file, fullDestination);
@@ -70,12 +78,18 @@ public class FileManagementController {
                            @RequestParam String destination) {
         User user = userRepository.findById(user_id).orElse(null);
         Path workingDirectory = Path.of(user.getWorkingDirectory());
+        String fullDestination = null;
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        String fullDestination = workingDirectory.resolve(destination)
+        fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
+
+        if (!destination.isEmpty()) {
+            // Папу также сохраняем в базу данных как файл
+            fetchFolderAndSave(user_id, fullDestination);
+        }
 
         List<FileModel> fileModels = new ArrayList<FileModel>();
         for (MultipartFile file: files) {
@@ -83,8 +97,6 @@ public class FileManagementController {
             fileModels.add(fileModel);
         }
 
-        // Папу также сохраняем в базу данных как файл
-        fetchFolderAndSave(user_id, fullDestination);
 
         fileModelRepository.saveAll(fileModels);
         fileSystemService.saveAllFiles(files, fullDestination);
@@ -116,12 +128,18 @@ public class FileManagementController {
 
     @GetMapping(apiName + "/downloadMultiple")
     @ResponseBody
-    public ResponseEntity downloadFiles(@RequestParam String[] fileNames) {
+    public ResponseEntity downloadFiles(@RequestParam long userId, String[] fileNames) {
+        User user = userRepository.findById(userId).orElse(null);
+        String saveTo = Path.of(user.getWorkingDirectory())
+                .resolve(tmpDirectory)
+                .normalize()
+                .toString();
+
         try {
             for (int i = 0; i < fileNames.length; i++) {
                 fileNames[i] = fileSystemService.getResolvedPath(fileNames[i]).toString();
             }
-            File zipFile = zipArchiverService.zip(fileNames);
+            File zipFile = zipArchiverService.zip(fileNames, saveTo);
             Resource resource = fileSystemService.getFile(zipFile.getAbsolutePath());
 
             return ResponseEntity.ok()
@@ -177,7 +195,7 @@ public class FileManagementController {
     private final IUserRepository userRepository;
     private final IZipArchiverService zipArchiverService;
     private final String apiName = "/files";
-
+    private final String tmpDirectory;
     private String getPathToFolder(String fullDestination, String defaultPath)
     {
         String pathToFolder = defaultPath.toString();

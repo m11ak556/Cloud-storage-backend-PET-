@@ -40,7 +40,7 @@ public class UserController {
 
         user.setWorkingDirectory(user.getLogin());
         userRepository.save(user);
-        fileSystemService.createDirectory(user.getLogin());
+        userService.initializeDirectories(user.getLogin());
 
         return ResponseEntity.ok().build();
     }
