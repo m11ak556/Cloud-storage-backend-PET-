@@ -26,10 +26,9 @@ import java.net.URLConnection;
 import java.nio.file.Path;
 import java.util.*;
 
-import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.exact;
+import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.*;
 
 @Controller
-//@CrossOrigin("http://localhost:3000")
 public class FileManagementController {
     @Autowired
     public FileManagementController(IFileSystemService fileSystemService,
@@ -51,12 +50,11 @@ public class FileManagementController {
                            @RequestParam String destination) {
         User user = userRepository.findById(user_id).orElse(null);
         Path workingDirectory = Path.of(user.getWorkingDirectory());
-        String fullDestination = null;
         FileModel fileModel = null;
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        fullDestination = workingDirectory.resolve(destination)
+        String fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
 
@@ -74,26 +72,29 @@ public class FileManagementController {
     @PostMapping(apiName + "/uploadMultiple")
     @ResponseBody
     public void uploadFiles(@RequestParam MultipartFile[] files,
-                           @RequestParam long user_id,
+                           @RequestParam long userId,
                            @RequestParam String destination) {
-        User user = userRepository.findById(user_id).orElse(null);
+        User user = userRepository.findById(userId).orElse(null);
         Path workingDirectory = Path.of(user.getWorkingDirectory());
-        String fullDestination = null;
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        fullDestination = workingDirectory.resolve(destination)
+        String fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
 
         if (!destination.isEmpty()) {
             // Папу также сохраняем в базу данных как файл
-            fetchFolderAndSave(user_id, fullDestination);
+            try {
+                fetchFolderAndSave(userId, fullDestination);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         List<FileModel> fileModels = new ArrayList<FileModel>();
         for (MultipartFile file: files) {
-            FileModel fileModel = buildFileModel(file, user_id, fullDestination);
+            FileModel fileModel = buildFileModel(file, userId, fullDestination);
             fileModels.add(fileModel);
         }
 
@@ -167,9 +168,18 @@ public class FileManagementController {
     @GetMapping(apiName + "/get")
     @ResponseBody
     public ResponseEntity<List<FileModel>> getFiles(@RequestParam String directory, long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        Path workingDirectory = Path.of(user.getWorkingDirectory());
+
+        // Добавляет рабочую директорию пользователя к пути файла.
+        // Так файл будет сохранен в папку пользователя, а не в корень программы.
+        String fullPath = workingDirectory.resolve(directory)
+                .normalize()
+                .toString();
+
         FileModel probe = new FileModel();
         probe.setUserId(userId);
-        probe.setPath(directory);
+        probe.setPath(fullPath);
 
         ExampleMatcher matcher = ExampleMatcher.matching()
                 .withIgnorePaths("id", "size")
@@ -204,7 +214,7 @@ public class FileManagementController {
             pathToFolder = fullDestination.substring(0, endIndex);
         return pathToFolder;
     }
-    private void fetchFolderAndSave(long user_id, String fullDestination)
+    private void fetchFolderAndSave(long userId, String fullDestination)
     {
         String directoryName = StringUtils.getFilename(fullDestination);
 
@@ -220,29 +230,29 @@ public class FileManagementController {
             defaultPath = fullDestination;
 
         String pathToFolder = getPathToFolder(fullDestination, defaultPath);
-        FileModel folder = buildFileModelFromDirectory(directoryName, user_id, pathToFolder);
+        FileModel folder = buildFileModelFromDirectory(directoryName, userId, pathToFolder);
         fileModelRepository.save(folder);
     }
 
-    private FileModel buildFileModel(MultipartFile file, long user_id, String path) {
+    private FileModel buildFileModel(MultipartFile file, long userId, String path) {
         FileModel fileModel = new FileModel();
         fileModel.setName(file.getOriginalFilename());
         fileModel.setPath(path);
         fileModel.setDateCreated(new Date());
-        fileModel.setUserId(user_id);
+        fileModel.setUserId(userId);
         fileModel.setSize(file.getSize());
         fileModel.setType(FileTypes.OTHER);
 
         return fileModel;
     }
 
-    private FileModel buildFileModelFromDirectory(String directoryName, long user_id, String path)
+    private FileModel buildFileModelFromDirectory(String directoryName, long userId, String path)
     {
         FileModel fileModel = new FileModel();
         fileModel.setName(directoryName);
         fileModel.setPath(path);
         fileModel.setDateCreated(new Date());
-        fileModel.setUserId(user_id);
+        fileModel.setUserId(userId);
         fileModel.setType(FileTypes.DIRECTORY);
 
         return fileModel;

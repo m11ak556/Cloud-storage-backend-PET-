@@ -33,7 +33,6 @@ public class TrashbinController {
         return null;
     }
 
-    // TODO: 12/8/23 Put to USER'S .trashbin directory
     @PostMapping(apiName + "/put")
     @ResponseBody
     public void putFile(@RequestParam long userId, String fileName, String filePath) {

@@ -23,6 +23,7 @@ public class FileModel {
     @Column(name = "user_id")
     private long userId;
 
+    @Column(unique = true)
     private String name;
     private String path;
     private Date dateCreated;
