@@ -43,26 +43,29 @@ public class FileManagementController {
         this.tmpDirectory = fileSystemConfiguration.getTmpDirectory();
     }
 
+    // destination может быть пустой строкой.
+    // Это означает сохранение в рабочую папку.
     @PostMapping(apiName + "/upload")
     @ResponseBody
     public void uploadFile(@RequestParam MultipartFile file,
-                           @RequestParam long user_id,
+                           @RequestParam long userId,
                            @RequestParam String destination) {
-        User user = userRepository.findById(user_id).orElse(null);
+        User user = userRepository.findById(userId).orElse(null);
         Path workingDirectory = Path.of(user.getWorkingDirectory());
         FileModel fileModel = null;
 
         // Добавляет рабочую директорию пользователя к пути файла.
         // Так файл будет сохранен в папку пользователя, а не в корень программы.
+        // Это нужно для файловой системы
         String fullDestination = workingDirectory.resolve(destination)
                 .normalize()
                 .toString();
 
         if (!destination.isEmpty()) {
 
-            fileModel = buildFileModel(file, user_id, fullDestination);
+            fileModel = buildFileModel(file, userId, destination);
             // Папу также сохраняем в базу данных как файл
-            fetchFolderAndSave(user_id, fullDestination);
+            fetchFolderAndSave(userId, destination);
         }
 
         fileModelRepository.save(fileModel);
@@ -86,7 +89,7 @@ public class FileManagementController {
         if (!destination.isEmpty()) {
             // Папу также сохраняем в базу данных как файл
             try {
-                fetchFolderAndSave(userId, fullDestination);
+                fetchFolderAndSave(userId, destination);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -94,7 +97,7 @@ public class FileManagementController {
 
         List<FileModel> fileModels = new ArrayList<FileModel>();
         for (MultipartFile file: files) {
-            FileModel fileModel = buildFileModel(file, userId, fullDestination);
+            FileModel fileModel = buildFileModel(file, userId, destination);
             fileModels.add(fileModel);
         }
 
@@ -103,15 +106,19 @@ public class FileManagementController {
         fileSystemService.saveAllFiles(files, fullDestination);
     }
 
-    // The colon is just a separator. It separates
-    // path variable name from regular expression
     @GetMapping(apiName + "/download")
     @ResponseBody
-    public ResponseEntity downloadFile(@RequestParam String fileName) {
+    public ResponseEntity downloadFile(@RequestParam long userId, String filePath) {
+        User user = userRepository.findById(userId).orElse(null);
+        String fullPath = Path.of(user.getWorkingDirectory())
+                .resolve(filePath)
+                .normalize()
+                .toString();
+
         Resource resource = null;
 
         try {
-            resource = fileSystemService.getFile(fileName);
+            resource = fileSystemService.getFile(fullPath);
         } catch (RuntimeException e) {
             e.printStackTrace();
             return ResponseEntity
@@ -123,13 +130,13 @@ public class FileManagementController {
                 .header(HttpHeaders.CONTENT_TYPE,
                         URLConnection.guessContentTypeFromName(resource.getFilename()))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + resource.getFilename() + "\"")
+                        "attachment; filePath=\"" + resource.getFilename() + "\"")
                 .body(resource);
     }
 
     @GetMapping(apiName + "/downloadMultiple")
     @ResponseBody
-    public ResponseEntity downloadFiles(@RequestParam long userId, String[] fileNames) {
+    public ResponseEntity downloadFiles(@RequestParam long userId, String[] filePaths) {
         User user = userRepository.findById(userId).orElse(null);
         String saveTo = Path.of(user.getWorkingDirectory())
                 .resolve(tmpDirectory)
@@ -137,10 +144,15 @@ public class FileManagementController {
                 .toString();
 
         try {
-            for (int i = 0; i < fileNames.length; i++) {
-                fileNames[i] = fileSystemService.getResolvedPath(fileNames[i]).toString();
+            String fullPath;
+            for (int i = 0; i < filePaths.length; i++) {
+                fullPath = Path.of(user.getWorkingDirectory())
+                        .resolve(filePaths[i])
+                        .normalize()
+                        .toString();
+                filePaths[i] = fileSystemService.getResolvedPath(fullPath).toString();
             }
-            File zipFile = zipArchiverService.zip(fileNames, saveTo);
+            File zipFile = zipArchiverService.zip(filePaths, saveTo);
             Resource resource = fileSystemService.getFile(zipFile.getAbsolutePath());
 
             return ResponseEntity.ok()
@@ -157,29 +169,15 @@ public class FileManagementController {
     @GetMapping(apiName + "/getByUserId")
     @ResponseBody
     public ResponseEntity<List<FileModel>> getFiles(@RequestParam long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-
-        if (user != null)
-            return getFiles(user.getWorkingDirectory(), userId);
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        return getFiles("", userId);
     }
 
     @GetMapping(apiName + "/get")
     @ResponseBody
     public ResponseEntity<List<FileModel>> getFiles(@RequestParam String directory, long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-        Path workingDirectory = Path.of(user.getWorkingDirectory());
-
-        // Добавляет рабочую директорию пользователя к пути файла.
-        // Так файл будет сохранен в папку пользователя, а не в корень программы.
-        String fullPath = workingDirectory.resolve(directory)
-                .normalize()
-                .toString();
-
         FileModel probe = new FileModel();
         probe.setUserId(userId);
-        probe.setPath(fullPath);
+        probe.setPath(directory);
 
         ExampleMatcher matcher = ExampleMatcher.matching()
                 .withIgnorePaths("id", "size")
@@ -192,9 +190,9 @@ public class FileManagementController {
 
     @DeleteMapping(apiName + "/delete")
     @ResponseBody
-    public void deleteFile(@RequestParam String fileName) {
+    public void deleteFile(@RequestParam String filePath) {
         try {
-            fileSystemService.deleteFile(fileName);
+            fileSystemService.deleteFile(filePath);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -206,30 +204,22 @@ public class FileManagementController {
     private final IZipArchiverService zipArchiverService;
     private final String apiName = "/files";
     private final String tmpDirectory;
-    private String getPathToFolder(String fullDestination, String defaultPath)
+    private String getPathToFolder(String destination)
     {
-        String pathToFolder = defaultPath.toString();
-        int endIndex = fullDestination.lastIndexOf("/");
+        String pathToFolder = "";
+        int endIndex = destination.lastIndexOf("/");
         if (endIndex > 0)
-            pathToFolder = fullDestination.substring(0, endIndex);
+            pathToFolder = destination.substring(0, endIndex);
         return pathToFolder;
     }
-    private void fetchFolderAndSave(long userId, String fullDestination)
+    private void fetchFolderAndSave(long userId, String destination)
     {
-        String directoryName = StringUtils.getFilename(fullDestination);
+        if (destination.isEmpty())
+            return;
 
-        // Определяем путь по умолчанию
-        String defaultPath;
-        int firstSlashIndex = fullDestination.indexOf("/");
+        String directoryName = StringUtils.getFilename(destination);
 
-        // Если путь содержит несколько папок ...
-        if (firstSlashIndex > 0)
-            // ... выбираем корень
-            defaultPath = fullDestination.substring(0, firstSlashIndex);
-        else
-            defaultPath = fullDestination;
-
-        String pathToFolder = getPathToFolder(fullDestination, defaultPath);
+        String pathToFolder = getPathToFolder(destination);
         FileModel folder = buildFileModelFromDirectory(directoryName, userId, pathToFolder);
         fileModelRepository.save(folder);
     }

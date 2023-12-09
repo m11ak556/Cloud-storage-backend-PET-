@@ -41,7 +41,7 @@ public class TrashbinController {
         // Поиск файла по его пути и имени
         FileModel file = fileModelRepository.findByNameAndPath(fileName, filePath).orElse(null);
 
-        String source = filePath + "/" + fileName;
+        String source = user.getWorkingDirectory() + "/" + filePath + "/" + fileName;
         String destination = user.getWorkingDirectory() + "/" + trashbinPath + "/" + fileName;
 
         file.setPath(trashbinPath);
