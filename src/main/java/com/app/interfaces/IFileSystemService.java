@@ -20,5 +20,6 @@ public interface IFileSystemService {
     * */
     void deleteDirectory(String directoryLocation);
     void moveFile(String source, String destination);
+    void moveFiles(String[] sources, String destination);
     Path getResolvedPath(String fileName);
 }

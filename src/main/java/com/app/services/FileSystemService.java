@@ -91,10 +91,16 @@ public class FileSystemService implements IFileSystemService {
         Path sourcePath = getResolvedPath(source);
         Path destinationPath = getResolvedPath(destination);
         try {
-            Files.move(sourcePath, destinationPath);
+            Files.move(sourcePath, destinationPath.resolve(sourcePath.getFileName()));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void moveFiles(String[] sources, String destination) {
+        for (String source : sources)
+            moveFile(source, destination);
     }
 
     @Override

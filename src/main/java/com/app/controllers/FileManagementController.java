@@ -6,6 +6,7 @@ import com.app.interfaces.IZipArchiverService;
 import com.app.model.FileModel;
 import com.app.model.FileTypes;
 import com.app.model.User;
+import com.app.model.id.FileModelId;
 import com.app.repositories.IFileModelRepository;
 import com.app.repositories.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -214,6 +215,47 @@ public class FileManagementController {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @PutMapping(apiName + "/move")
+    @ResponseBody
+    public void moveFiles(@RequestParam long[] fileIds,
+                            @RequestParam long userId,
+                            @RequestParam String destination) {
+        User user = userRepository.findById(userId).orElse(null);
+        Path workingDirectory = Path.of(user.getWorkingDirectory());
+
+        // Добавляет рабочую директорию пользователя к пути файла.
+        String fullDestination = workingDirectory.resolve(destination)
+                .normalize()
+                .toString();
+
+        List<FileModelId> ids = new ArrayList<>();
+        for (int i = 0; i < fileIds.length; i++) {
+            FileModelId id = new FileModelId(fileIds[i], userId);
+            ids.add(id);
+        }
+
+        List<FileModel> fileModels = fileModelRepository.findAllById(ids);
+        String[] sources = new String[fileModels.size()];
+
+        String fullSource = "";
+        int sourceIdx = 0;
+
+        for (FileModel fileModel : fileModels) {
+            fullSource = workingDirectory
+                    .resolve(fileModel.getPath())
+                    .resolve(fileModel.getName())
+                    .normalize()
+                    .toString();
+            sources[sourceIdx] = fullSource;
+            fileModel.setPath(destination);
+
+            sourceIdx++;
+        }
+
+        fileModelRepository.saveAll(fileModels);
+        fileSystemService.moveFiles(sources, fullDestination);
     }
 
     private final IFileSystemService fileSystemService;

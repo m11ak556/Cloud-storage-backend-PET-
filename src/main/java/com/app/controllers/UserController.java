@@ -10,6 +10,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,10 +23,12 @@ public class UserController {
     @Autowired
     public UserController(IUserRepository userRepository,
                           IFileSystemService fileSystemService,
-                          IUserService userService) {
+                          IUserService userService,
+                          PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.fileSystemService = fileSystemService;
         this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping(apiName + "/create")
@@ -39,6 +43,7 @@ public class UserController {
                             .body("Указанный email уже существует");
 
         user.setWorkingDirectory(user.getLogin());
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
         userService.initializeDirectories(user.getLogin());
 
@@ -63,4 +68,5 @@ public class UserController {
     private final IUserRepository userRepository;
     private final IFileSystemService fileSystemService;
     private final IUserService userService;
+    private final PasswordEncoder passwordEncoder;
 }
