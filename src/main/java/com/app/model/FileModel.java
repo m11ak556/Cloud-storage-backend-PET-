@@ -32,6 +32,9 @@ public class FileModel {
     private FileTypes type;
     private long size;
 
+    @Column(name = "is_deleted")
+    private boolean isDeleted;
+
     @ManyToOne
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;

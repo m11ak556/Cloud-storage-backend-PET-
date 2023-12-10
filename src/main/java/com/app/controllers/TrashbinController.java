@@ -44,7 +44,7 @@ public class TrashbinController {
         String source = user.getWorkingDirectory() + "/" + filePath + "/" + fileName;
         String destination = user.getWorkingDirectory() + "/" + trashbinPath + "/" + fileName;
 
-        file.setPath(trashbinPath);
+        file.setDeleted(true);
 
         fileModelRepository.save(file);
         fileSystemService.moveFile(source, destination);

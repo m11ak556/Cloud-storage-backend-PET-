@@ -178,11 +178,29 @@ public class FileManagementController {
         FileModel probe = new FileModel();
         probe.setUserId(userId);
         probe.setPath(directory);
+        probe.setDeleted(false);
 
         ExampleMatcher matcher = ExampleMatcher.matching()
                 .withIgnorePaths("id", "size")
                 .withMatcher("user_id", exact())
-                .withMatcher("path", exact());
+                .withMatcher("path", exact())
+                .withMatcher("is_deleted", exact());
+
+        List<FileModel> files = fileModelRepository.findAll(Example.of(probe, matcher));
+        return ResponseEntity.ok().body(files);
+    }
+
+    @GetMapping(apiName + "/getAll")
+    @ResponseBody
+    public ResponseEntity<List<FileModel>> getAllFiles(@RequestParam long userId) {
+        FileModel probe = new FileModel();
+        probe.setUserId(userId);
+        probe.setDeleted(false);
+
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withIgnorePaths("id", "size")
+                .withMatcher("user_id", exact())
+                .withMatcher("is_deleted", exact());
 
         List<FileModel> files = fileModelRepository.findAll(Example.of(probe, matcher));
         return ResponseEntity.ok().body(files);
@@ -212,6 +230,7 @@ public class FileManagementController {
             pathToFolder = destination.substring(0, endIndex);
         return pathToFolder;
     }
+
     private void fetchFolderAndSave(long userId, String destination)
     {
         if (destination.isEmpty())
