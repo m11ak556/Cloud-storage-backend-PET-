@@ -7,12 +7,16 @@ import com.app.model.User;
 import com.app.repositories.IFileModelRepository;
 import com.app.repositories.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.file.Path;
 import java.util.List;
+
+import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.*;
 
 @Controller
 public class TrashbinController {
@@ -29,8 +33,18 @@ public class TrashbinController {
 
     @GetMapping(apiName + "/get")
     @ResponseBody
-    public ResponseEntity<List<FileModel>> getFiles() {
-        return null;
+    public ResponseEntity<List<FileModel>> getFiles(@RequestParam long userId) {
+        FileModel probe = new FileModel();
+        probe.setUserId(userId);
+        probe.setDeleted(true);
+
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withIgnorePaths("id", "size")
+                .withMatcher("user_id", exact())
+                .withMatcher("is_deleted", exact());
+
+        List<FileModel> fileModels = fileModelRepository.findAll(Example.of(probe, matcher));
+        return ResponseEntity.ok(fileModels);
     }
 
     @PostMapping(apiName + "/put")
@@ -42,7 +56,7 @@ public class TrashbinController {
         FileModel file = fileModelRepository.findByNameAndPath(fileName, filePath).orElse(null);
 
         String source = user.getWorkingDirectory() + "/" + filePath + "/" + fileName;
-        String destination = user.getWorkingDirectory() + "/" + trashbinPath + "/" + fileName;
+        String destination = user.getWorkingDirectory() + "/" + trashbinPath;
 
         file.setDeleted(true);
 

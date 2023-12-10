@@ -34,11 +34,6 @@ public class DirectoryManagementController {
             User user = userRepository.findById(userId).orElse(null);
             Path workingDirPath = Path.of(user.getWorkingDirectory());
 
-            String directoryPath = workingDirPath
-                    .resolve(path)
-                    .normalize()
-                    .toString();
-
             String createAtPath = workingDirPath
                     .resolve(directoryName)
                     .normalize()
@@ -49,7 +44,7 @@ public class DirectoryManagementController {
             directory.setName(directoryName);
             directory.setDateCreated(new Date());
             directory.setType(FileTypes.DIRECTORY);
-            directory.setPath(directoryPath);
+            directory.setPath(path);
 
             fileSystemService.createDirectory(createAtPath);
             fileModelRepository.save(directory);

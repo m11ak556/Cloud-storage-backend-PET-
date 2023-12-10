@@ -10,6 +10,10 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Entity(name = "file")
+@Table(
+        uniqueConstraints=
+            @UniqueConstraint(columnNames={"user_id", "name"})
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,7 +27,6 @@ public class FileModel {
     @Column(name = "user_id")
     private long userId;
 
-    @Column(unique = true)
     private String name;
     private String path;
     private Date dateCreated;

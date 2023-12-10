@@ -36,5 +36,5 @@ public class AuthenticationController {
 
     private final IUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final String apiName = "auth";
+    private final String apiName = "/auth";
 }
