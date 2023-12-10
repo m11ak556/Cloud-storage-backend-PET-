@@ -42,4 +42,9 @@ public class FileModel {
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
+    @Transient
+    public String getTypeTitle() {
+        return type.getTitle();
+    }
+
 }

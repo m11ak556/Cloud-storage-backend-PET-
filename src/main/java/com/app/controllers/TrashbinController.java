@@ -4,6 +4,7 @@ import com.app.configuration.FileSystemConfiguration;
 import com.app.interfaces.IFileSystemService;
 import com.app.model.FileModel;
 import com.app.model.User;
+import com.app.model.id.FileModelId;
 import com.app.repositories.IFileModelRepository;
 import com.app.repositories.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import java.util.List;
 import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.*;
 
 @Controller
+@CrossOrigin("http://localhost:3000")
 public class TrashbinController {
     @Autowired
     public TrashbinController(FileSystemConfiguration fileSystemConfiguration,
@@ -64,12 +66,48 @@ public class TrashbinController {
         fileSystemService.moveFile(source, destination);
     }
 
-    // На фронтэнде это можно сделать через контроллеры файлов и папок
-//    @DeleteMapping("/trashbin/destroy")
-//    @ResponseBody
-//    public void destroyFile(@RequestParam String fileName) {
-//        fileSystemService.deleteForce(trashbinPath + "/" + fileName);
-//    }
+    @PutMapping(apiName + "/restore")
+    public void restoreFile(@RequestParam long userId, @RequestParam long fileId) {
+        User user = userRepository.findById(userId).orElse(null);
+        Path workingDirPath = Path.of(user.getWorkingDirectory());
+
+        FileModelId id = new FileModelId(fileId, userId);
+        FileModel fileModel = fileModelRepository.findById(id).orElse(null);
+        fileModel.setDeleted(false);
+
+        String source = workingDirPath
+                .resolve(trashbinPath)
+                .resolve(fileModel.getName())
+                .normalize()
+                .toString();
+
+        String destination = workingDirPath
+                .resolve(fileModel.getPath())
+                .normalize()
+                .toString();
+
+        fileModelRepository.save(fileModel);
+        fileSystemService.moveFile(source, destination);
+    }
+
+    @DeleteMapping(apiName + "/destroy")
+    @ResponseBody
+    public void destroyFile(@RequestParam long userId, @RequestParam long fileId) {
+        User user = userRepository.findById(userId).orElse(null);
+        Path workingDirPath = Path.of(user.getWorkingDirectory());
+
+        FileModelId id = new FileModelId(fileId, userId);
+        FileModel fileModel = fileModelRepository.findById(id).orElse(null);
+
+        String fullPath = workingDirPath
+                .resolve(trashbinPath)
+                .resolve(fileModel.getName())
+                .normalize()
+                .toString();
+
+        fileModelRepository.delete(fileModel);
+        fileSystemService.deleteFile(fullPath);
+    }
 
     private final String trashbinPath;
     private final String apiName = "/trashbin";
