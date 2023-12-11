@@ -1,6 +1,7 @@
 package com.app.controllers;
 
 import com.app.configuration.FileSystemConfiguration;
+import com.app.interfaces.IFileModelService;
 import com.app.interfaces.IFileSystemService;
 import com.app.interfaces.IZipArchiverService;
 import com.app.model.FileModel;
@@ -36,12 +37,14 @@ public class FileManagementController {
                                     IFileModelRepository fileModelRepository,
                                     IUserRepository userRepository,
                                     IZipArchiverService zipArchiverService,
-                                    FileSystemConfiguration fileSystemConfiguration) {
+                                    FileSystemConfiguration fileSystemConfiguration,
+                                    IFileModelService fileModelService) {
         this.fileSystemService = fileSystemService;
         this.fileModelRepository = fileModelRepository;
         this.userRepository = userRepository;
         this.zipArchiverService = zipArchiverService;
         this.tmpDirectory = fileSystemConfiguration.getTmpDirectory();
+        this.fileModelService = fileModelService;
     }
 
     // destination может быть пустой строкой.
@@ -262,6 +265,7 @@ public class FileManagementController {
     private final IFileModelRepository fileModelRepository;
     private final IUserRepository userRepository;
     private final IZipArchiverService zipArchiverService;
+    private final IFileModelService fileModelService;
     private final String apiName = "/files";
     private final String tmpDirectory;
     private String getPathToFolder(String destination)
@@ -287,12 +291,16 @@ public class FileManagementController {
 
     private FileModel buildFileModel(MultipartFile file, long userId, String path) {
         FileModel fileModel = new FileModel();
-        fileModel.setName(file.getOriginalFilename());
+
+        String fileName = file.getOriginalFilename();
+        FileTypes fileType = fileModelService.guessFileType(fileName);
+
+        fileModel.setName(fileName);
         fileModel.setPath(path);
         fileModel.setDateCreated(new Date());
         fileModel.setUserId(userId);
         fileModel.setSize(file.getSize());
-        fileModel.setType(FileTypes.OTHER);
+        fileModel.setType(fileType);
 
         return fileModel;
     }

@@ -6,9 +6,13 @@ import lombok.Data;
 
 public enum FileTypes {
     DOCUMENT ("Документ"),
+    SPREADSHEET("Электронная таблица"),
+    PRESENTATIONS("Презентация"),
+    TEXT("Текстовый файл"),
     AUDIO ("Аудио"),
     VIDEO ("Видео"),
     IMAGE ("Изображение"),
+    COMPRESSED("Архив"),
     DIRECTORY ("Папка"),
     OTHER ("Другое");
 
