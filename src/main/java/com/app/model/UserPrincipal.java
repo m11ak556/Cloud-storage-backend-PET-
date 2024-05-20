@@ -5,6 +5,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 
+/**
+ * Сущность учетной записи
+ */
 public class UserPrincipal implements UserDetails {
 
     public UserPrincipal(User user) {

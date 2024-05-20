@@ -7,6 +7,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Предоставляет метода для обработке запросов к таблице моделей файлов
+ */
 @Repository
 public interface IFileModelRepository extends JpaRepository<FileModel, FileModelId> {
     Optional<FileModel> findByNameAndPath(String name, String path);

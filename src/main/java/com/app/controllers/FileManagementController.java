@@ -30,6 +30,9 @@ import java.util.*;
 
 import static org.springframework.data.domain.ExampleMatcher.GenericPropertyMatchers.*;
 
+/**
+ * Обеспечивает методы работы с файлами в системе
+ */
 @Controller
 public class FileManagementController {
     @Autowired
@@ -47,8 +50,15 @@ public class FileManagementController {
         this.fileModelService = fileModelService;
     }
 
-    // destination может быть пустой строкой.
-    // Это означает сохранение в рабочую папку.
+    /**
+     * Загружает одиночный файл по указанному пути
+     * @param file
+     *      Загружаемый файл
+     * @param userId
+     *      Пользователь, осуществляющий загрузку
+     * @param destination
+     *      Путь загрузки. При указании пустого пути файл загружается в рабочую директорию пользователя
+     */
     @PostMapping(apiName + "/upload")
     @ResponseBody
     public void uploadFile(@RequestParam MultipartFile file,
@@ -66,7 +76,7 @@ public class FileManagementController {
                 .toString();
 
         if (!destination.isEmpty()) {
-
+            // Создание модели файла для сохранения его в базу данных
             fileModel = buildFileModel(file, userId, destination);
             // Папу также сохраняем в базу данных как файл
             fetchFolderAndSave(userId, destination);
@@ -76,9 +86,18 @@ public class FileManagementController {
         fileSystemService.saveFile(file, fullDestination);
     }
 
+    /**
+     * Загружает группу файлов по указанному пути
+     * @param files
+     *      Загружаемые файлы
+     * @param userId
+     *      Пользователь, осуществляющий загрузку
+     * @param destination
+     *      Путь загрузки. При указании пустого пути файл загружается в рабочую директорию пользователя
+     */
     @PostMapping(apiName + "/uploadMultiple")
     @ResponseBody
-    public void uploadFiles(@RequestParam MultipartFile[] files,
+    public ResponseEntity uploadFiles(@RequestParam MultipartFile[] files,
                            @RequestParam long userId,
                            @RequestParam String destination) {
         User user = userRepository.findById(userId).orElse(null);
@@ -99,21 +118,43 @@ public class FileManagementController {
             }
         }
 
+        // Создание моделей загруженных файлов для сохранения
+        // и в базу данных
         List<FileModel> fileModels = new ArrayList<FileModel>();
         for (MultipartFile file: files) {
+//            if (file.getSize() / (1024 * 3) > 4)
+//                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+//                        .body("Превышен максимальный размер файла");
+
             FileModel fileModel = buildFileModel(file, userId, destination);
             fileModels.add(fileModel);
         }
 
-
         fileModelRepository.saveAll(fileModels);
         fileSystemService.saveAllFiles(files, fullDestination);
+
+        return ResponseEntity.ok().build();
     }
 
+    /**
+     * Скачивает одиночный файл, расположенный по указанному пути
+     * @param userId
+     *      Пользователь, скачивающий файл
+     * @param filePath
+     *      Путь к скачиваемому файлу. Указывается БЕЗ рабочей директории пользователя
+     */
     @GetMapping(apiName + "/download")
     @ResponseBody
     public ResponseEntity downloadFile(@RequestParam long userId, String filePath) {
         User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null)
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body("Пользователь не найден");
+        
+        // Добавление рабочей директории пользователя к пути файла.
+        // Так файл будет корректно определен архиватором.
         String fullPath = Path.of(user.getWorkingDirectory())
                 .resolve(filePath)
                 .normalize()
@@ -122,14 +163,16 @@ public class FileManagementController {
         Resource resource = null;
 
         try {
+            // Получение файла из файловой системы
             resource = fileSystemService.getFile(fullPath);
         } catch (RuntimeException e) {
             e.printStackTrace();
             return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
-                    .body("File not found");
+                    .status(HttpStatus.CONFLICT)
+                    .body("Файл не найден");
         }
 
+        // Отправление файла клиенту в пакете Http
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE,
                         URLConnection.guessContentTypeFromName(resource.getFilename()))
@@ -138,10 +181,25 @@ public class FileManagementController {
                 .body(resource);
     }
 
+    /**
+     * Скачивает группу файлов, расположенных по указанным путям
+     * @param userId
+     *      Пользователь, скачивающий файлы
+     * @param filePaths
+     *      Пути расположения файлов
+     */
     @GetMapping(apiName + "/downloadMultiple")
     @ResponseBody
     public ResponseEntity downloadFiles(@RequestParam long userId, String[] filePaths) {
+        if (filePaths == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Не указаны пути скачиваемых файлов");
+        }
+
         User user = userRepository.findById(userId).orElse(null);
+
+        // Добавление рабочей директории пользователя к пути временного сохранения.
+        // Это обеспечит корректное сохранение временного архива.
         String saveTo = Path.of(user.getWorkingDirectory())
                 .resolve(tmpDirectory)
                 .normalize()
@@ -150,15 +208,21 @@ public class FileManagementController {
         try {
             String fullPath;
             for (int i = 0; i < filePaths.length; i++) {
+                // Добавление рабочей директории к пути файла.
                 fullPath = Path.of(user.getWorkingDirectory())
                         .resolve(filePaths[i])
                         .normalize()
                         .toString();
+                // Разрешение пути относительно корневой директории.
+                // Так он будет корректно определен архиватором.
                 filePaths[i] = fileSystemService.getResolvedPath(fullPath).toString();
             }
+            // Архивация файлов
             File zipFile = zipArchiverService.zip(filePaths, saveTo);
+            // Получение созданного архива из файловой системы
             Resource resource = fileSystemService.getFile(zipFile.getAbsolutePath());
 
+            // Отправление пользователю архива с файлами в пакете Http
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE,
                             URLConnection.guessContentTypeFromName(resource.getFilename()))
@@ -166,60 +230,82 @@ public class FileManagementController {
                             "attachment; filename=\"" + resource.getFilename() + "\"")
                     .body(resource);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body("Не удалось загрузить файлы");
         }
     }
 
+    /**
+     * Получает список файлов по id пользователя. Файлы выбирваются из корневой директории
+     */
     @GetMapping(apiName + "/getByUserId")
     @ResponseBody
     public ResponseEntity<List<FileModel>> getFiles(@RequestParam long userId) {
         return getFiles("", userId);
     }
 
+    /**
+     * Получает файлы из указанной директории пользователя
+     * @param directory
+     *      Директория, из которой необходимо получить файлы
+     * @param userId
+     *      Пользователь, файлы которого требуется получить
+     */
     @GetMapping(apiName + "/get")
     @ResponseBody
     public ResponseEntity<List<FileModel>> getFiles(@RequestParam String directory, long userId) {
+        // Задание значений параметров поиска
         FileModel probe = new FileModel();
         probe.setUserId(userId);
         probe.setPath(directory);
         probe.setDeleted(false);
 
+        // Задание параметров поиска
         ExampleMatcher matcher = ExampleMatcher.matching()
                 .withIgnorePaths("id", "size")
                 .withMatcher("user_id", exact())
                 .withMatcher("path", exact())
                 .withMatcher("is_deleted", exact());
 
+        // Поиск файлов по заданным параметрам
         List<FileModel> files = fileModelRepository.findAll(Example.of(probe, matcher));
         return ResponseEntity.ok().body(files);
     }
 
+    /**
+     * Получение всех файлов указанного пользователя
+     * @param userId
+     *      Пользователь, файлы которого необходимо получить
+     */
     @GetMapping(apiName + "/getAll")
     @ResponseBody
     public ResponseEntity<List<FileModel>> getAllFiles(@RequestParam long userId) {
+        // Задание значений параметров поиска
         FileModel probe = new FileModel();
         probe.setUserId(userId);
         probe.setDeleted(false);
 
+        // Задание параметров поиска
         ExampleMatcher matcher = ExampleMatcher.matching()
                 .withIgnorePaths("id", "size")
                 .withMatcher("user_id", exact())
                 .withMatcher("is_deleted", exact());
 
+        // Поиск файлов по заданным параметрам
         List<FileModel> files = fileModelRepository.findAll(Example.of(probe, matcher));
         return ResponseEntity.ok().body(files);
     }
 
-    @DeleteMapping(apiName + "/delete")
-    @ResponseBody
-    public void deleteFile(@RequestParam String filePath) {
-        try {
-            fileSystemService.deleteFile(filePath);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
+    /**
+     * Перемещение указанных файлов в указанную директорию
+     * @param fileIds
+     *      Id перемещаемых файлов
+     * @param userId
+     *      Пользователь, перемещающий файлы
+     * @param destination
+     *      Путь перемещения файлов. Необходимо указывать БЕЗ имени перемещаемого файла
+     */
     @PutMapping(apiName + "/move")
     @ResponseBody
     public void moveFiles(@RequestParam long[] fileIds,
@@ -233,6 +319,7 @@ public class FileManagementController {
                 .normalize()
                 .toString();
 
+        // Сборка составного индентификатора файлов
         List<FileModelId> ids = new ArrayList<>();
         for (int i = 0; i < fileIds.length; i++) {
             FileModelId id = new FileModelId(fileIds[i], userId);
@@ -245,7 +332,9 @@ public class FileManagementController {
         String fullSource = "";
         int sourceIdx = 0;
 
+        // Получение исходный путей файлов
         for (FileModel fileModel : fileModels) {
+            // Добавление рабочей папки пользователя к пути файла
             fullSource = workingDirectory
                     .resolve(fileModel.getPath())
                     .resolve(fileModel.getName())
@@ -268,31 +357,55 @@ public class FileManagementController {
     private final IFileModelService fileModelService;
     private final String apiName = "/files";
     private final String tmpDirectory;
-    private String getPathToFolder(String destination)
+
+    /**
+     * Получает путь к указанной директории
+     * @param pathWithFolder
+     *      Полный путь к папке (с ее именем)
+     */
+    private String getPathToFolder(String pathWithFolder)
     {
         String pathToFolder = "";
-        int endIndex = destination.lastIndexOf("/");
+        int endIndex = pathWithFolder.lastIndexOf("/");
         if (endIndex > 0)
-            pathToFolder = destination.substring(0, endIndex);
+            pathToFolder = pathWithFolder.substring(0, endIndex);
         return pathToFolder;
     }
 
+    /**
+     * Получает родительскую папку из указанного пути сохранения файла
+     * и сохраняет ее в базе данных
+     * @param userId
+     *      Пользователь сохраняющий файлы
+     * @param destination
+     *      Путь сохранения файла БЕЗ рабочей директроии пользователя
+     */
     private void fetchFolderAndSave(long userId, String destination)
     {
         if (destination.isEmpty())
             return;
 
         String directoryName = StringUtils.getFilename(destination);
-
         String pathToFolder = getPathToFolder(destination);
+
         FileModel folder = buildFileModelFromDirectory(directoryName, userId, pathToFolder);
         fileModelRepository.save(folder);
     }
 
+    /**
+     * Создает модель файла из указанного файла
+     * @param file
+     *      Файл, модель которого требуется создать
+     * @param userId
+     *      Пользователь, создающий модель
+     * @param path
+     *      Путь файла в хранилище (куда будет сохранен) БЕЗ рабочей директории пользователя
+     */
     private FileModel buildFileModel(MultipartFile file, long userId, String path) {
         FileModel fileModel = new FileModel();
 
         String fileName = file.getOriginalFilename();
+        // Определение типа файла
         FileTypes fileType = fileModelService.guessFileType(fileName);
 
         fileModel.setName(fileName);
@@ -305,6 +418,15 @@ public class FileManagementController {
         return fileModel;
     }
 
+    /**
+     * Создает модель файла из указанной директории
+     * @param directoryName
+     *      Имя директории, модель которой требуется создать
+     * @param userId
+     *      Пользователь, создающий директорию
+     * @param path
+     *      Путь директори в хранилище (куда она будет сохранена) БЕЗ рабочей директории пользователя
+     */
     private FileModel buildFileModelFromDirectory(String directoryName, long userId, String path)
     {
         FileModel fileModel = new FileModel();

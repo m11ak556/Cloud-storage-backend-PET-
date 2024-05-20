@@ -17,6 +17,9 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Controller;
 
+/**
+ * Отвечает за настройку параметров безопасности приложения
+ */
 @EnableWebSecurity
 @Configuration
 public class ApplicationSecurityConfiguration {
@@ -26,11 +29,19 @@ public class ApplicationSecurityConfiguration {
         this.userDetailsService = userDetailsService;
     }
 
+    /**
+     * Генерирует шифратор пароля, использующий алгоритм BCrypt
+     * @return
+     *      Шифратор пароля BCrypt
+     */
     @Bean
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Предоставляет глобальный доступ к параметрам аутентификации
+     */
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -40,6 +51,9 @@ public class ApplicationSecurityConfiguration {
         return provider;
     }
 
+    /**
+     * Определяет страницы, на которые будут наложены ограничения по Http запросам
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.

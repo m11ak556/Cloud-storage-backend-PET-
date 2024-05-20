@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+/**
+ * Предоставляет методы аутентификации пользователя в системе
+ */
 @Controller
 public class AuthenticationController {
     @Autowired

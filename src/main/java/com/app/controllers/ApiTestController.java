@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.net.http.HttpResponse;
 
+/**
+ * Контроллер для проведения тестирования различных методов
+ */
 @Controller
 public class ApiTestController {
     @GetMapping("/greetings")

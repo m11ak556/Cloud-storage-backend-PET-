@@ -18,7 +18,11 @@ import org.springframework.web.bind.annotation.*;
 import java.net.http.HttpResponse;
 import java.util.List;
 
+/**
+ * Предоставляет методы работы с пользователями
+ */
 @Controller
+@CrossOrigin("http://localhost:3000")
 public class UserController {
     @Autowired
     public UserController(IUserRepository userRepository,
@@ -31,9 +35,18 @@ public class UserController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Создает указаного пользователя
+     * @param user
+     *      Создаваемый пользователь
+     */
     @PostMapping(apiName + "/create")
     @ResponseBody
     public ResponseEntity<String> createUser(@RequestBody User user) {
+        if (user == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Пользовател не был задан");
+
         if (userService.isLoginDuplicate(user.getLogin()))
             return ResponseEntity.status(HttpStatus.CONFLICT)
                             .body("Указанный логин уже существует");
@@ -45,18 +58,18 @@ public class UserController {
         user.setWorkingDirectory(user.getLogin());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
+
+        // Создание для пользователя рабочей директории, корзины и папки для временных файлов
         userService.initializeDirectories(user.getLogin());
 
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping(apiName + "/get")
-    @ResponseBody
-    public ResponseEntity<List<User>> getUsers() {
-        List<User> users = userRepository.findAll();
-        return ResponseEntity.ok().body(users);
-    }
-
+    /**
+     * Получает пользователя по его id
+     * @param id
+     *      Id пользователя
+     */
     @GetMapping(apiName + "/getById")
     @ResponseBody
     public ResponseEntity<User> getUserById(@RequestParam long id) {

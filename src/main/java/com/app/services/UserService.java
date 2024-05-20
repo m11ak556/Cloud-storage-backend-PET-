@@ -27,13 +27,16 @@ public class UserService implements IUserService {
     }
 
     public boolean isEmailDuplicate(String email) {
+        // Задание значений параметров поиска
         User probe = new User();
         probe.setEmail(email);
 
+        // Задание параметров поиска
         ExampleMatcher matcher = ExampleMatcher.matching()
                 .withIgnorePaths("id")
                 .withMatcher("email", caseSensitive());
 
+        // Поиск по указанным параметрам
         return userRepository.exists(Example.of(probe, matcher));
     }
 

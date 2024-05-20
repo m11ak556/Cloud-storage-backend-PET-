@@ -27,19 +27,11 @@ public class FileSystemService implements IFileSystemService {
         this.rootPath = Paths.get(uploadConfiguration.getRootDirectory());
     }
 
-    /**
-     * Сохраняет файл в указанну папку с учетом корневой папки.
-     *
-     * @param file
-     *        Сохраняемый файл.
-     *
-     * @param destination
-     *        Относительный путь сохранения. ДЛЯ СОХРАНЕНИЯ В КОРЕНЬ
-     *        СЛЕДУЕТ ОСТАВИТЬ ПУСТЫМ.
-     * */
     @Override
     public void saveFile(MultipartFile file, String destination) {
         String fileName = file.getOriginalFilename();
+
+        // Разрешение пути файла относительно корневой директории
         Path saveTo = getResolvedPath(destination)
                 .resolve(fileName)
                 .normalize();
@@ -75,6 +67,7 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void deleteFile(String fileLocation) {
+        // Разрешение пути к файлу относительно корневой директории
         Path pathToFile = getResolvedPath(fileLocation);
         try {
             if (Files.notExists(pathToFile))
@@ -88,9 +81,11 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void moveFile(String source, String destination) {
+        // Разрешение исходного пути и пути назначения относительно корневой директории
         Path sourcePath = getResolvedPath(source);
         Path destinationPath = getResolvedPath(destination);
         try {
+            // Во втором аргументе функции к пути назначения добавляется имя файла
             Files.move(sourcePath, destinationPath.resolve(sourcePath.getFileName()));
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -105,6 +100,7 @@ public class FileSystemService implements IFileSystemService {
 
     @Override
     public void createDirectory(String directoryName) {
+        // Разрешение пути к папке относительно корневой директории
         Path pathToDirectory = getResolvedPath(directoryName);
         try {
             Files.createDirectories(pathToDirectory);
@@ -114,7 +110,8 @@ public class FileSystemService implements IFileSystemService {
     }
 
     @Override
-    public void deleteDirectory(String directoryLocation) {
+    public void deleteForce(String directoryLocation) {
+        // Разрешение пути к папке относительно корневой директории
         Path pathToDirectory = getResolvedPath(directoryLocation);
         try {
             FileSystemUtils.deleteRecursively(pathToDirectory);

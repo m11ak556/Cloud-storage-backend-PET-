@@ -9,6 +9,9 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.util.Date;
 
+/**
+ * Сущность модели файлов
+ */
 @Entity(name = "file")
 @Table(
         uniqueConstraints=

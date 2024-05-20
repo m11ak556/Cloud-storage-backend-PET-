@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+/**
+ * Составной первичный ключ модели файлов
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

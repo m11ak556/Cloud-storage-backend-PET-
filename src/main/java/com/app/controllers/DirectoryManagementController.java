@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.nio.file.Path;
 import java.util.Date;
 
+/**
+ * Предоставляет методы работы с директориями
+ */
 @Controller
 public class DirectoryManagementController {
     @Autowired
@@ -27,6 +30,15 @@ public class DirectoryManagementController {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Создает директорию для указанного пользователя по указанному пути
+     * @param userId
+     *      Id пользователя, для которого создается директория
+     * @param directoryName
+     *      Имя директории (не должно содержать символа "/")
+     * @param path
+     *      Путь создания директории. Необходимо указывать БЕЗ рабочей папки пользователя
+     */
     @PostMapping(apiName + "/create")
     @ResponseBody
     public void createDirectory(@RequestParam long userId, String directoryName, String path) {
@@ -34,6 +46,8 @@ public class DirectoryManagementController {
             User user = userRepository.findById(userId).orElse(null);
             Path workingDirPath = Path.of(user.getWorkingDirectory());
 
+            // Добавление рабочей папки к пути создания.
+            // Это необходимо для корректного создания файла в файловой системе.
             String createAtPath = workingDirPath
                     .resolve(directoryName)
                     .normalize()
@@ -57,7 +71,7 @@ public class DirectoryManagementController {
     @ResponseBody
     public void deleteDirectory(@RequestParam String directoryName) {
         try {
-            fileSystemService.deleteDirectory(directoryName);
+            fileSystemService.deleteForce(directoryName);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

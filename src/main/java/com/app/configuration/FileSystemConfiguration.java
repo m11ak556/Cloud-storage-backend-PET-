@@ -5,6 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
 
+/**
+ * Отвечает за параметры файловой системы.
+ * Определяет системные директории.
+ */
 @Getter
 @ConfigurationProperties("storage")
 public class FileSystemConfiguration {

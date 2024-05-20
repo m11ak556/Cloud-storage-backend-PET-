@@ -6,6 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.id.factory.spi.GenerationTypeStrategy;
 
+/**
+ * Сущность польователя
+ */
 @Entity(name = "\"user\"")
 @Data
 @NoArgsConstructor
